@@ -352,4 +352,10 @@ public class Mainkamera extends AppCompatActivity {
             });
         }
     }
+
+    @Override
+    public void onBackPressed() {
+        super.onBackPressed();
+        gpsTracker.stopUsingGPS();
+    }
 }
