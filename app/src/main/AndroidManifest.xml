@@ -25,7 +25,7 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme"
         android:usesCleartextTraffic="true">
-        <activity android:name=".DetailGaleriActivity"></activity>
+        <activity android:name=".DetailGaleriActivity"/>
         <activity android:name=".Maintampilgaleri" />
         <activity android:name=".Maingaleri" />
         <activity android:name=".Mainabout" />

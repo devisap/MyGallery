@@ -37,13 +37,11 @@ public class DetailGaleriActivity extends AppCompatActivity {
         final Uri uri = Uri.fromFile(new File(imageModel.getAbsolutePath()));
 
         imageViewGamber = findViewById(R.id.imageViewGambar);
-        textViewNama = findViewById(R.id.textViewNama);
         textViewLokasi = findViewById(R.id.textViewLokasi);
         buttonBagikan = findViewById(R.id.buttonBagikan);
         buttonHapus = findViewById(R.id.buttonHapus);
 
         imageViewGamber.setImageURI(uri);
-        textViewNama.setText(imageModel.getNama());
         textViewLokasi.setText(imageModel.getAlamat());
 
         buttonBagikan.setOnClickListener(new View.OnClickListener() {

@@ -18,17 +18,6 @@ public class ImageModel implements Serializable {
     @ColumnInfo(name = "alamat")
     private String alamat;
 
-    @ColumnInfo(name = "nama")
-    private String nama;
-
-    public String getNama() {
-        return nama;
-    }
-
-    public void setNama(String nama) {
-        this.nama = nama;
-    }
-
     public String getAlamat() {
         return alamat;
     }

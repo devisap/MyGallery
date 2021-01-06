@@ -43,6 +43,7 @@ import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
 import com.nadiva.uas.mygallery181111009.database.ImageModel;
+import com.nadiva.uas.mygallery181111009.service.GpsTracker;
 import com.nadiva.uas.mygallery181111009.viewmodel.MainKameraViewModel;
 
 import java.io.File;
@@ -58,10 +59,11 @@ public class Mainkamera extends AppCompatActivity {
     private MainKameraViewModel mainKameraViewModel;
     private ImageView imageViewGamabar;
     private Button buttonSimpan, buttonHapus, buttonAmbilGambar;
-    private EditText editTextNamaGambar;
     private TextView textViewLokasi;
     private String absolutePath;
     private Uri outputFileUri;
+
+    private GpsTracker gpsTracker;
 
     private FusedLocationProviderClient fusedLocationProviderClient;
     private LocationManager locationManager;
@@ -80,13 +82,13 @@ public class Mainkamera extends AppCompatActivity {
         imageViewGamabar = findViewById(R.id.imageViewGambar);
         buttonHapus = findViewById(R.id.buttonHapus);
         buttonAmbilGambar = findViewById(R.id.buttonAmbilGambar);
-        editTextNamaGambar = findViewById(R.id.editTextNamaGambar);
         textViewLokasi = findViewById(R.id.textViewLokasi);
 
         if (!locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
             OnGPS();
         } else {
-            getLocation();
+//            getLocation();
+            getNewLocation();
         }
         final String dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES) + "/"+ getResources().getString(R.string.app_name) +"/";
         final File newDir = new File(dir);
@@ -133,7 +135,6 @@ public class Mainkamera extends AppCompatActivity {
                                 ImageModel imageModel = new ImageModel();
                                 imageModel.setAbsolutePath(absolutePath);
                                 imageModel.setAlamat(address);
-                                imageModel.setNama(editTextNamaGambar.getText().toString());
                                 mainKameraViewModel.insertImage(imageModel);
                                 absolutePath = null;
                                 Toast.makeText(Mainkamera.this, "Gambar Berhasil Disimpan!", Toast.LENGTH_SHORT).show();
@@ -155,7 +156,8 @@ public class Mainkamera extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 if (address == null) {
-                    getLocation();
+//                    getLocation();
+                    getNewLocation();
                     Toast.makeText(Mainkamera.this, "Coba lagi, aplikasi gagal mendapatkan lokasi!", Toast.LENGTH_SHORT).show();
                 } else {
                     fileName = dir + System.currentTimeMillis() + ".jpg";
@@ -250,7 +252,8 @@ public class Mainkamera extends AppCompatActivity {
             @Override
             public void onClick(DialogInterface dialog, int which) {
                 startActivity(new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS));
-                getLocation();
+//                getLocation();
+                getNewLocation();
             }
         }).setNegativeButton("No", new DialogInterface.OnClickListener() {
             @Override
@@ -262,6 +265,25 @@ public class Mainkamera extends AppCompatActivity {
         alertDialog.show();
     }
 
+    public void getNewLocation(){
+        gpsTracker = new GpsTracker(Mainkamera.this);
+        if(gpsTracker.canGetLocation()){
+            double latitude = gpsTracker.getLatitude();
+            double longitude = gpsTracker.getLongitude();
+            try {
+                Geocoder geocoder = new Geocoder(Mainkamera.this, Locale.getDefault());
+                List<Address> addresses = geocoder.getFromLocation(latitude, longitude, 1);
+                Log.e("address", addresses.get(0).getAddressLine(0));
+                address = addresses.get(0).getAddressLine(0);
+                textViewLokasi.setText(address);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }else{
+            gpsTracker.showSettingsAlert();
+        }
+    }
+
     @SuppressLint("MissingPermission")
     public void getLocation() {
         LocationManager locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
@@ -269,40 +291,63 @@ public class Mainkamera extends AppCompatActivity {
             fusedLocationProviderClient.getLastLocation().addOnCompleteListener(new OnCompleteListener<Location>() {
                 @Override
                 public void onComplete(@NonNull Task<Location> task) {
-                    final Location location = task.getResult();
-                    if (location != null) {
-                        try {
-                            Geocoder geocoder = new Geocoder(Mainkamera.this, Locale.getDefault());
-                            List<Address> addresses = geocoder.getFromLocation(location.getLatitude(), location.getLongitude(), 1);
-                            Log.e("address", addresses.get(0).getAddressLine(0));
-                            address = addresses.get(0).getAddressLine(0);
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }
-                    } else {
-                        LocationRequest locationRequest = new LocationRequest()
-                                .setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY)
-                                .setInterval(1000)
-                                .setFastestInterval(1000)
-                                .setNumUpdates(1);
+                    LocationRequest locationRequest = new LocationRequest()
+                            .setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY)
+                            .setInterval(1000)
+                            .setFastestInterval(1000)
+                            .setNumUpdates(1);
 
-                        LocationCallback locationCallback = new LocationCallback() {
-                            @Override
-                            public void onLocationResult(LocationResult locationResult) {
-//                                super.onLocationResult(locationResult);
-                                Location location1 = locationResult.getLastLocation();
-                                try {
-                                    Geocoder geocoder = new Geocoder(Mainkamera.this, Locale.getDefault());
-                                    List<Address> addresses = geocoder.getFromLocation(location1.getLatitude(), location.getLongitude(), 1);
-                                    Log.e("address", addresses.get(0).getAddressLine(0));
-                                    address = addresses.get(0).getAddressLine(0);
-                                } catch (Exception e) {
-                                    e.printStackTrace();
-                                }
+                    LocationCallback locationCallback = new LocationCallback() {
+                        @Override
+                        public void onLocationResult(LocationResult locationResult) {
+                            super.onLocationResult(locationResult);
+                            Location location1 = locationResult.getLastLocation();
+                            try {
+                                Geocoder geocoder = new Geocoder(Mainkamera.this, Locale.getDefault());
+                                List<Address> addresses = geocoder.getFromLocation(location1.getLatitude(), location1.getLongitude(), 1);
+                                Log.e("address", addresses.get(0).getAddressLine(0));
+                                address = addresses.get(0).getAddressLine(0);
+                                textViewLokasi.setText(address);
+                            } catch (Exception e) {
+                                e.printStackTrace();
                             }
-                        };
-                        fusedLocationProviderClient.requestLocationUpdates(locationRequest, locationCallback, Looper.myLooper());
-                    }
+                        }
+                    };
+                    fusedLocationProviderClient.requestLocationUpdates(locationRequest, locationCallback, Looper.myLooper());
+//                    final Location location = task.getResult();
+//                    if (location != null) {
+//                        try {
+//                            Geocoder geocoder = new Geocoder(Mainkamera.this, Locale.getDefault());
+//                            List<Address> addresses = geocoder.getFromLocation(location.getLatitude(), location.getLongitude(), 1);
+//                            Log.e("address", addresses.get(0).getAddressLine(0));
+//                            address = addresses.get(0).getAddressLine(0);
+//                        } catch (Exception e) {
+//                            e.printStackTrace();
+//                        }
+//                    } else {
+//                        LocationRequest locationRequest = new LocationRequest()
+//                                .setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY)
+//                                .setInterval(1000)
+//                                .setFastestInterval(1000)
+//                                .setNumUpdates(1);
+//
+//                        LocationCallback locationCallback = new LocationCallback() {
+//                            @Override
+//                            public void onLocationResult(LocationResult locationResult) {
+////                                super.onLocationResult(locationResult);
+//                                Location location1 = locationResult.getLastLocation();
+//                                try {
+//                                    Geocoder geocoder = new Geocoder(Mainkamera.this, Locale.getDefault());
+//                                    List<Address> addresses = geocoder.getFromLocation(location1.getLatitude(), location1.getLongitude(), 1);
+//                                    Log.e("address", addresses.get(0).getAddressLine(0));
+//                                    address = addresses.get(0).getAddressLine(0);
+//                                    textViewLokasi.setText(address);
+//                                } catch (Exception e) {
+//                                    e.printStackTrace();
+//                                }
+//                            }
+//                        };
+//                        fusedLocationProviderClient.requestLocationUpdates(locationRequest, locationCallback, Looper.myLooper());
                 }
             });
         }
