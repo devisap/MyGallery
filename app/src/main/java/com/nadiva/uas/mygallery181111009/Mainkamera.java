@@ -1,50 +1,35 @@
 package com.nadiva.uas.mygallery181111009;
 
-import android.annotation.SuppressLint;
-import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.graphics.Bitmap;
-import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Matrix;
-import android.graphics.Paint;
 import android.location.Address;
 import android.location.Geocoder;
-import android.location.Location;
-import android.location.LocationManager;
 import android.media.ExifInterface;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
-import android.os.Looper;
 import android.provider.MediaStore;
-import android.provider.Settings;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
-import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.FileProvider;
 import androidx.lifecycle.ViewModelProviders;
 
-import com.google.android.gms.location.FusedLocationProviderClient;
-import com.google.android.gms.location.LocationCallback;
-import com.google.android.gms.location.LocationRequest;
-import com.google.android.gms.location.LocationResult;
-import com.google.android.gms.location.LocationServices;
-import com.google.android.gms.tasks.OnCompleteListener;
-import com.google.android.gms.tasks.Task;
 import com.nadiva.uas.mygallery181111009.database.ImageModel;
 import com.nadiva.uas.mygallery181111009.service.GpsTracker;
 import com.nadiva.uas.mygallery181111009.viewmodel.MainKameraViewModel;
+import com.watermark.androidwm.WatermarkBuilder;
+import com.watermark.androidwm.bean.WatermarkText;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -58,15 +43,13 @@ public class Mainkamera extends AppCompatActivity {
 
     private MainKameraViewModel mainKameraViewModel;
     private ImageView imageViewGamabar;
-    private Button buttonSimpan, buttonHapus, buttonAmbilGambar;
+    private Button buttonSimpan, buttonHapus, buttonAmbilGambar, buttonDapatkanLokasi;
     private TextView textViewLokasi;
     private String absolutePath;
     private Uri outputFileUri;
 
     private GpsTracker gpsTracker;
 
-    private FusedLocationProviderClient fusedLocationProviderClient;
-    private LocationManager locationManager;
     private String address, fileName;
 
     @Override
@@ -75,21 +58,16 @@ public class Mainkamera extends AppCompatActivity {
         setContentView(R.layout.activity_mainkamera);
 
         mainKameraViewModel = ViewModelProviders.of(this).get(MainKameraViewModel.class);
-        locationManager = (LocationManager) getApplicationContext().getSystemService(Context.LOCATION_SERVICE);
-        fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(this);
         imageViewGamabar = findViewById(R.id.imageViewGambar);
         buttonSimpan = findViewById(R.id.buttonSimpan);
         imageViewGamabar = findViewById(R.id.imageViewGambar);
         buttonHapus = findViewById(R.id.buttonHapus);
         buttonAmbilGambar = findViewById(R.id.buttonAmbilGambar);
+        buttonDapatkanLokasi = findViewById(R.id.buttonDapatkanLokasi);
         textViewLokasi = findViewById(R.id.textViewLokasi);
 
-        if (!locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
-            OnGPS();
-        } else {
-//            getLocation();
-            getNewLocation();
-        }
+        getNewLocation();
+
         final String dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES) + "/"+ getResources().getString(R.string.app_name) +"/";
         final File newDir = new File(dir);
         newDir.mkdirs();
@@ -155,11 +133,7 @@ public class Mainkamera extends AppCompatActivity {
         buttonAmbilGambar.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if (address == null) {
-//                    getLocation();
-                    getNewLocation();
-                    Toast.makeText(Mainkamera.this, "Coba lagi, aplikasi gagal mendapatkan lokasi!", Toast.LENGTH_SHORT).show();
-                } else {
+                if (address != null) {
                     fileName = dir + System.currentTimeMillis() + ".jpg";
                     File newFile = new File(fileName);
                     try {
@@ -179,7 +153,19 @@ public class Mainkamera extends AppCompatActivity {
 
                     //yang ini buat ngejalanin intent nya
                     startActivityForResult(cameraIntent, TAKE_PHOTO_CODE);
+                } else {
+                    Toast.makeText(v.getContext(), "Data lokasi tidak ditemukan, coba lagi!", Toast.LENGTH_SHORT).show();
                 }
+            }
+        });
+
+        buttonDapatkanLokasi.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                address = null;
+                textViewLokasi.setText("");
+                getNewLocation();
+                Toast.makeText(v.getContext(), "Sedang mengambil data lokasi...", Toast.LENGTH_SHORT).show();
             }
         });
     }
@@ -190,37 +176,15 @@ public class Mainkamera extends AppCompatActivity {
         if (requestCode == TAKE_PHOTO_CODE && resultCode == RESULT_OK) {
             Log.d("Success", "Picture Saved");
             if (absolutePath != null) {
-                addWatermarkToImage();
+                saveNewImage();
             }
         }
     }
 
-    public static Bitmap addWatermark(Bitmap src, String watermark, int orientation) {
-        int w = src.getWidth();
-        int h = src.getHeight();
-        Matrix matrix = new Matrix();
-        matrix.postRotate(orientation);
-        Log.e("orientation", String.valueOf(orientation));
-        Bitmap result = Bitmap.createBitmap(src, 0, 0, w, h, matrix, true);
-        Canvas canvas = new Canvas(result);
-        //canvas.drawBitmap(src, 0, 0, null);
-        canvas.drawBitmap(src, matrix, null);
-        Paint paint = new Paint();
-        paint.setColor(Color.RED);
-        paint.setTextSize(100);
-        paint.setAntiAlias(true);
-        paint.setUnderlineText(true);
-        paint.setTextAlign(Paint.Align.LEFT);
-        canvas.drawText(watermark, 0, (0+paint.getTextSize()), paint);
-
-        return result;
-    }
-
-    public void addWatermarkToImage() {
+    public void saveNewImage() {
         Intent mediaScanIntent = new Intent("android.intent.action.MEDIA_SCANNER_SCAN_FILE");
         File f = new File(absolutePath);
         Uri contentUri = Uri.fromFile(f);
-        Bitmap bitmap;
         try {
             ExifInterface exifInterface = new ExifInterface(absolutePath);
             int orientation = exifInterface.getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL);
@@ -231,9 +195,12 @@ public class Mainkamera extends AppCompatActivity {
                 case ExifInterface.ORIENTATION_ROTATE_180:
                     orientation = 180;
                     break;
+                case ExifInterface.ORIENTATION_ROTATE_270:
+                    orientation = 270;
+                    break;
             }
-            bitmap = MediaStore.Images.Media.getBitmap(getContentResolver(), outputFileUri);
-            bitmap = addWatermark(bitmap, address, orientation);
+            Bitmap bitmap = MediaStore.Images.Media.getBitmap(getContentResolver(), outputFileUri);
+            bitmap = rotateBitmap(bitmap, orientation);
             OutputStream fileOutputStream = new FileOutputStream(f);
             bitmap.compress(Bitmap.CompressFormat.JPEG, 100, fileOutputStream);
             fileOutputStream.flush();
@@ -246,23 +213,27 @@ public class Mainkamera extends AppCompatActivity {
         }
     }
 
-    private void OnGPS() {
-        final androidx.appcompat.app.AlertDialog.Builder builder = new androidx.appcompat.app.AlertDialog.Builder(this);
-        builder.setMessage("Enable GPS").setCancelable(false).setPositiveButton("Yes", new  DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                startActivity(new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS));
-//                getLocation();
-                getNewLocation();
-            }
-        }).setNegativeButton("No", new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                dialog.cancel();
-            }
-        });
-        final AlertDialog alertDialog = builder.create();
-        alertDialog.show();
+    public Bitmap rotateBitmap(Bitmap src, int orientation) {
+        int w = src.getWidth();
+        int h = src.getHeight();
+        Matrix matrix = new Matrix();
+        matrix.postRotate(orientation);
+        Log.e("orientation", String.valueOf(orientation));
+        Bitmap result = Bitmap.createBitmap(src, 0, 0, w, h, matrix, true);
+
+        WatermarkText watermarkText = new WatermarkText(address)
+                .setPositionX(0.01)
+                .setPositionY(0.01)
+                .setTextColor(Color.WHITE)
+                .setTextAlpha(1000)
+                .setTextSize(12);
+        Bitmap newBitmap = WatermarkBuilder
+                .create(this, result)
+                .loadWatermarkText(watermarkText) // use .loadWatermarkImage(watermarkImage) to load an image.
+                .getWatermark()
+                .getOutputImage();
+
+        return newBitmap;
     }
 
     public void getNewLocation(){
@@ -282,80 +253,5 @@ public class Mainkamera extends AppCompatActivity {
         }else{
             gpsTracker.showSettingsAlert();
         }
-    }
-
-    @SuppressLint("MissingPermission")
-    public void getLocation() {
-        LocationManager locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
-        if (locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER) || locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)) {
-            fusedLocationProviderClient.getLastLocation().addOnCompleteListener(new OnCompleteListener<Location>() {
-                @Override
-                public void onComplete(@NonNull Task<Location> task) {
-                    LocationRequest locationRequest = new LocationRequest()
-                            .setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY)
-                            .setInterval(1000)
-                            .setFastestInterval(1000)
-                            .setNumUpdates(1);
-
-                    LocationCallback locationCallback = new LocationCallback() {
-                        @Override
-                        public void onLocationResult(LocationResult locationResult) {
-                            super.onLocationResult(locationResult);
-                            Location location1 = locationResult.getLastLocation();
-                            try {
-                                Geocoder geocoder = new Geocoder(Mainkamera.this, Locale.getDefault());
-                                List<Address> addresses = geocoder.getFromLocation(location1.getLatitude(), location1.getLongitude(), 1);
-                                Log.e("address", addresses.get(0).getAddressLine(0));
-                                address = addresses.get(0).getAddressLine(0);
-                                textViewLokasi.setText(address);
-                            } catch (Exception e) {
-                                e.printStackTrace();
-                            }
-                        }
-                    };
-                    fusedLocationProviderClient.requestLocationUpdates(locationRequest, locationCallback, Looper.myLooper());
-//                    final Location location = task.getResult();
-//                    if (location != null) {
-//                        try {
-//                            Geocoder geocoder = new Geocoder(Mainkamera.this, Locale.getDefault());
-//                            List<Address> addresses = geocoder.getFromLocation(location.getLatitude(), location.getLongitude(), 1);
-//                            Log.e("address", addresses.get(0).getAddressLine(0));
-//                            address = addresses.get(0).getAddressLine(0);
-//                        } catch (Exception e) {
-//                            e.printStackTrace();
-//                        }
-//                    } else {
-//                        LocationRequest locationRequest = new LocationRequest()
-//                                .setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY)
-//                                .setInterval(1000)
-//                                .setFastestInterval(1000)
-//                                .setNumUpdates(1);
-//
-//                        LocationCallback locationCallback = new LocationCallback() {
-//                            @Override
-//                            public void onLocationResult(LocationResult locationResult) {
-////                                super.onLocationResult(locationResult);
-//                                Location location1 = locationResult.getLastLocation();
-//                                try {
-//                                    Geocoder geocoder = new Geocoder(Mainkamera.this, Locale.getDefault());
-//                                    List<Address> addresses = geocoder.getFromLocation(location1.getLatitude(), location1.getLongitude(), 1);
-//                                    Log.e("address", addresses.get(0).getAddressLine(0));
-//                                    address = addresses.get(0).getAddressLine(0);
-//                                    textViewLokasi.setText(address);
-//                                } catch (Exception e) {
-//                                    e.printStackTrace();
-//                                }
-//                            }
-//                        };
-//                        fusedLocationProviderClient.requestLocationUpdates(locationRequest, locationCallback, Looper.myLooper());
-                }
-            });
-        }
-    }
-
-    @Override
-    public void onBackPressed() {
-        super.onBackPressed();
-        gpsTracker.stopUsingGPS();
     }
 }

@@ -45,4 +45,6 @@ dependencies {
     annotationProcessor 'android.arch.lifecycle:compiler:1.1.1'
     testImplementation 'androidx.room:room-testing:2.3.0-alpha04'
     annotationProcessor 'androidx.room:room-compiler:2.3.0-alpha04'
+
+    implementation 'com.huangyz0918:androidwm:0.2.3'
 }
