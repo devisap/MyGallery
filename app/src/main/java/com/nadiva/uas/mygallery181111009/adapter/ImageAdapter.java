@@ -4,7 +4,10 @@ import android.app.AlertDialog;
 import android.app.Application;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.net.Uri;
+import android.util.Base64;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -41,13 +44,16 @@ public class ImageAdapter extends RecyclerView.Adapter<ImageAdapter.ViewHolder> 
 
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, final int position) {
-        Uri uri = Uri.fromFile(new File(list.get(position).getAbsolutePath()));
-        holder.imageView.setImageURI(uri);
+        byte[] decodedString = Base64.decode(list.get(position).getImage(), Base64.DEFAULT);
+        Bitmap decodedImage = BitmapFactory.decodeByteArray(decodedString, 0, decodedString.length);
+        holder.imageView.setImageBitmap(decodedImage);
+//        Uri uri = Uri.fromFile(new File(list.get(position).getAbsolutePath()));
+//        holder.imageView.setImageURI(uri);
         holder.itemView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 Intent intent = new Intent(v.getContext(), DetailGaleriActivity.class);
-                intent.putExtra("IMAGE", list.get(position));
+                intent.putExtra("ID_IMAGE", list.get(position).getIdImage());
                 v.getContext().startActivity(intent);
             }
         });

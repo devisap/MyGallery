@@ -7,13 +7,13 @@ import androidx.room.PrimaryKey;
 import java.io.Serializable;
 
 @Entity
-public class ImageModel implements Serializable {
+public class ImageModel {
     @PrimaryKey(autoGenerate = true)
     @ColumnInfo(name = "idImage")
     private int idImage;
 
-    @ColumnInfo(name = "absolutePath")
-    private String absolutePath;
+    @ColumnInfo(name = "image")
+    private String image;
 
     @ColumnInfo(name = "alamat")
     private String alamat;
@@ -34,12 +34,11 @@ public class ImageModel implements Serializable {
         this.idImage = idImage;
     }
 
-    public String getAbsolutePath() {
-        return absolutePath;
+    public String getImage() {
+        return image;
     }
 
-    public void setAbsolutePath(String absolutePath) {
-        this.absolutePath = absolutePath;
+    public void setImage(String image) {
+        this.image = image;
     }
-
 }

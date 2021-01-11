@@ -33,7 +33,7 @@ public class Maintampilgaleri extends AppCompatActivity {
             public void onChanged(List<ImageModel> imageModels) {
                 for (ImageModel imageModel: imageModels) {
                     Log.e("idImage", String.valueOf(imageModel.getIdImage()));
-                    Log.e("absolutePath", String.valueOf(imageModel.getAbsolutePath()));
+                    Log.e("absolutePath", String.valueOf(imageModel.getImage()));
                 }
                 recyclerViewGaleri(imageModels);
             }

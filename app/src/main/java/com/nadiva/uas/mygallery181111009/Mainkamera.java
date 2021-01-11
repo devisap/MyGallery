@@ -12,6 +12,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
+import android.util.Base64;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
@@ -28,9 +29,12 @@ import androidx.lifecycle.ViewModelProviders;
 import com.nadiva.uas.mygallery181111009.database.ImageModel;
 import com.nadiva.uas.mygallery181111009.service.GpsTracker;
 import com.nadiva.uas.mygallery181111009.viewmodel.MainKameraViewModel;
+import com.theartofdev.edmodo.cropper.CropImage;
+import com.theartofdev.edmodo.cropper.CropImageView;
 import com.watermark.androidwm.WatermarkBuilder;
 import com.watermark.androidwm.bean.WatermarkText;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -50,7 +54,7 @@ public class Mainkamera extends AppCompatActivity {
 
     private GpsTracker gpsTracker;
 
-    private String address, fileName;
+    private String address, fileName, encodedImage;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -68,9 +72,9 @@ public class Mainkamera extends AppCompatActivity {
 
         getNewLocation();
 
-        final String dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES) + "/"+ getResources().getString(R.string.app_name) +"/";
-        final File newDir = new File(dir);
-        newDir.mkdirs();
+//        final String dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES) + "/"+ getResources().getString(R.string.app_name) +"/";
+//        final File newDir = new File(dir);
+//        newDir.mkdirs();
 
         if (address != null) {
             textViewLokasi.setText(address);
@@ -86,6 +90,7 @@ public class Mainkamera extends AppCompatActivity {
                             @Override
                             public void onClick(DialogInterface dialog, int which) {
                                 imageViewGamabar.setImageResource(0);
+                                encodedImage = null;
                                 Toast.makeText(Mainkamera.this, "Gambar Berhasil Dihapus!", Toast.LENGTH_SHORT).show();
                                 dialog.dismiss();
                             }
@@ -104,55 +109,62 @@ public class Mainkamera extends AppCompatActivity {
         buttonSimpan.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                new AlertDialog.Builder(v.getContext())
-                        .setTitle("Pesan")
-                        .setMessage("Apakah anda yakin ingin menyimpan gambar ini?")
-                        .setPositiveButton("Ya", new DialogInterface.OnClickListener() {
-                            @Override
-                            public void onClick(DialogInterface dialog, int which) {
-                                ImageModel imageModel = new ImageModel();
-                                imageModel.setAbsolutePath(absolutePath);
-                                imageModel.setAlamat(address);
-                                mainKameraViewModel.insertImage(imageModel);
-                                absolutePath = null;
-                                Toast.makeText(Mainkamera.this, "Gambar Berhasil Disimpan!", Toast.LENGTH_SHORT).show();
-                                dialog.dismiss();
-                            }
-                        })
-                        .setNegativeButton("Tidak", new DialogInterface.OnClickListener() {
-                            @Override
-                            public void onClick(DialogInterface dialog, int which) {
-                                dialog.dismiss();
-                            }
-                        })
-                        .create()
-                        .show();
+                if (address != null && encodedImage != null) {
+                    new AlertDialog.Builder(v.getContext())
+                            .setTitle("Pesan")
+                            .setMessage("Apakah anda yakin ingin menyimpan gambar ini?")
+                            .setPositiveButton("Ya", new DialogInterface.OnClickListener() {
+                                @Override
+                                public void onClick(DialogInterface dialog, int which) {
+                                    ImageModel imageModel = new ImageModel();
+                                    imageModel.setImage(encodedImage);
+                                    imageModel.setAlamat(address);
+                                    mainKameraViewModel.insertImage(imageModel);
+                                    imageViewGamabar.setImageResource(0);
+                                    encodedImage = null;
+                                    Toast.makeText(Mainkamera.this, "Gambar Berhasil Disimpan!", Toast.LENGTH_SHORT).show();
+                                    dialog.dismiss();
+                                }
+                            })
+                            .setNegativeButton("Tidak", new DialogInterface.OnClickListener() {
+                                @Override
+                                public void onClick(DialogInterface dialog, int which) {
+                                    dialog.dismiss();
+                                }
+                            })
+                            .create()
+                            .show();
                 }
+            }
         });
 
         buttonAmbilGambar.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 if (address != null) {
-                    fileName = dir + System.currentTimeMillis() + ".jpg";
-                    File newFile = new File(fileName);
-                    try {
-                        //yang bagian ini buat ngecreate file nya aja
-                        newFile.createNewFile();
-                        absolutePath = newFile.getAbsolutePath();
-                    } catch (IOException e) {
-                        Log.e("ErrorFIle", e.getMessage());
-                    }
-                    //yang bagian ini codingan default sih wkwkwk tapi maskudnya itu file yang kita bikin tadi mau diambil Uri nya buat bisa diproses di kamera lewat provider
-                    outputFileUri = FileProvider.getUriForFile(v.getContext(), v.getContext().getApplicationContext().getPackageName() + ".provider", newFile);
-
-                    //yang bagian ini intent biasa buat ngebuka kamera nya
-                    Intent cameraIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-                    //yang ini bagian nyimpen data Uri nya ke intent buat diproses jadi waktu nanti setelah capture image itu gambarnya disimpen ke variabel outputFileUri
-                    cameraIntent.putExtra(MediaStore.EXTRA_OUTPUT, outputFileUri);
-
-                    //yang ini buat ngejalanin intent nya
-                    startActivityForResult(cameraIntent, TAKE_PHOTO_CODE);
+                    CropImage.activity()
+                            .setGuidelines(CropImageView.Guidelines.ON)
+                            .start(Mainkamera.this);
+//                    //fileName = dir + System.currentTimeMillis() + ".jpg";
+//                    File newFile = new File(getExternalFilesDir(Environment.DIRECTORY_PICTURES)
+//                            , System.currentTimeMillis() + ".PNG");
+//                    try {
+//                        //yang bagian ini buat ngecreate file nya aja
+//                        newFile.createNewFile();
+//                        absolutePath = newFile.getAbsolutePath();
+//                    } catch (IOException e) {
+//                        Log.e("ErrorFIle", e.getMessage());
+//                    }
+//                    //yang bagian ini codingan default sih wkwkwk tapi maskudnya itu file yang kita bikin tadi mau diambil Uri nya buat bisa diproses di kamera lewat provider
+//                    outputFileUri = FileProvider.getUriForFile(v.getContext(), v.getContext().getApplicationContext().getPackageName() + ".provider", newFile);
+//
+//                    //yang bagian ini intent biasa buat ngebuka kamera nya
+//                    Intent cameraIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+//                    //yang ini bagian nyimpen data Uri nya ke intent buat diproses jadi waktu nanti setelah capture image itu gambarnya disimpen ke variabel outputFileUri
+//                    cameraIntent.putExtra(MediaStore.EXTRA_OUTPUT, outputFileUri);
+//
+//                    //yang ini buat ngejalanin intent nya
+//                    startActivityForResult(cameraIntent, TAKE_PHOTO_CODE);
                 } else {
                     Toast.makeText(v.getContext(), "Data lokasi tidak ditemukan, coba lagi!", Toast.LENGTH_SHORT).show();
                 }
@@ -173,69 +185,98 @@ public class Mainkamera extends AppCompatActivity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == TAKE_PHOTO_CODE && resultCode == RESULT_OK) {
-            Log.d("Success", "Picture Saved");
-            if (absolutePath != null) {
-                saveNewImage();
+        if (requestCode == CropImage.CROP_IMAGE_ACTIVITY_REQUEST_CODE) {
+            CropImage.ActivityResult result = CropImage.getActivityResult(data);
+            if (resultCode == RESULT_OK) {
+                Uri uri = result.getUri();
+                try {
+                    Bitmap bitmap = MediaStore.Images.Media.getBitmap(this.getContentResolver(), uri);
+                    WatermarkText watermarkText = new WatermarkText(address)
+                        .setPositionX(0.01)
+                        .setPositionY(0.01)
+                        .setTextColor(Color.WHITE)
+                        .setTextAlpha(1000)
+                        .setTextSize(12);
+                    Bitmap newBitmap = WatermarkBuilder
+                            .create(this, bitmap)
+                            .loadWatermarkText(watermarkText) // use .loadWatermarkImage(watermarkImage) to load an image.
+                            .getWatermark()
+                            .getOutputImage();
+                    ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+                    newBitmap.compress(Bitmap.CompressFormat.PNG, 100, byteArrayOutputStream);
+                    byte[] byteArray = byteArrayOutputStream .toByteArray();
+                    encodedImage = Base64.encodeToString(byteArray, Base64.DEFAULT);
+                    imageViewGamabar.setImageBitmap(newBitmap);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            } else if (resultCode == CropImage.CROP_IMAGE_ACTIVITY_RESULT_ERROR_CODE) {
+                Exception error = result.getError();
             }
         }
+//        if (requestCode == TAKE_PHOTO_CODE && resultCode == RESULT_OK) {
+//            Log.d("Success", "Picture Saved");
+//            if (absolutePath != null) {
+//                saveNewImage();
+//            }
+//        }
     }
 
-    public void saveNewImage() {
-        Intent mediaScanIntent = new Intent("android.intent.action.MEDIA_SCANNER_SCAN_FILE");
-        File f = new File(absolutePath);
-        Uri contentUri = Uri.fromFile(f);
-        try {
-            ExifInterface exifInterface = new ExifInterface(absolutePath);
-            int orientation = exifInterface.getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL);
-            switch (orientation) {
-                case ExifInterface.ORIENTATION_ROTATE_90:
-                    orientation = 90;
-                    break;
-                case ExifInterface.ORIENTATION_ROTATE_180:
-                    orientation = 180;
-                    break;
-                case ExifInterface.ORIENTATION_ROTATE_270:
-                    orientation = 270;
-                    break;
-            }
-            Bitmap bitmap = MediaStore.Images.Media.getBitmap(getContentResolver(), outputFileUri);
-            bitmap = rotateBitmap(bitmap, orientation);
-            OutputStream fileOutputStream = new FileOutputStream(f);
-            bitmap.compress(Bitmap.CompressFormat.JPEG, 100, fileOutputStream);
-            fileOutputStream.flush();
-            fileOutputStream.close();
-            mediaScanIntent.setData(contentUri);
-            this.sendBroadcast(mediaScanIntent);
-            imageViewGamabar.setImageBitmap(bitmap);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-    public Bitmap rotateBitmap(Bitmap src, int orientation) {
-        int w = src.getWidth();
-        int h = src.getHeight();
-        Matrix matrix = new Matrix();
-        matrix.postRotate(orientation);
-        Log.e("orientation", String.valueOf(orientation));
-        Bitmap result = Bitmap.createBitmap(src, 0, 0, w, h, matrix, true);
-
-        WatermarkText watermarkText = new WatermarkText(address)
-                .setPositionX(0.01)
-                .setPositionY(0.01)
-                .setTextColor(Color.WHITE)
-                .setTextAlpha(1000)
-                .setTextSize(12);
-        Bitmap newBitmap = WatermarkBuilder
-                .create(this, result)
-                .loadWatermarkText(watermarkText) // use .loadWatermarkImage(watermarkImage) to load an image.
-                .getWatermark()
-                .getOutputImage();
-
-        return newBitmap;
-    }
-
+//    public void saveNewImage() {
+//        Intent mediaScanIntent = new Intent("android.intent.action.MEDIA_SCANNER_SCAN_FILE");
+//        File f = new File(absolutePath);
+//        Uri contentUri = Uri.fromFile(f);
+//        try {
+//            ExifInterface exifInterface = new ExifInterface(absolutePath);
+//            int orientation = exifInterface.getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL);
+//            switch (orientation) {
+//                case ExifInterface.ORIENTATION_ROTATE_90:
+//                    orientation = 90;
+//                    break;
+//                case ExifInterface.ORIENTATION_ROTATE_180:
+//                    orientation = 180;
+//                    break;
+//                case ExifInterface.ORIENTATION_ROTATE_270:
+//                    orientation = 270;
+//                    break;
+//            }
+//            Bitmap bitmap = MediaStore.Images.Media.getBitmap(getContentResolver(), outputFileUri);
+//            bitmap = rotateBitmap(bitmap, orientation);
+//            OutputStream fileOutputStream = new FileOutputStream(f);
+//            bitmap.compress(Bitmap.CompressFormat.PNG, 100, fileOutputStream);
+//            fileOutputStream.flush();
+//            fileOutputStream.close();
+//            mediaScanIntent.setData(contentUri);
+//            this.sendBroadcast(mediaScanIntent);
+//            imageViewGamabar.setImageBitmap(bitmap);
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        }
+//    }
+//
+//    public Bitmap rotateBitmap(Bitmap src, int orientation) {
+//        int w = src.getWidth();
+//        int h = src.getHeight();
+//        Matrix matrix = new Matrix();
+//        matrix.postRotate(orientation);
+//        Log.e("orientation", String.valueOf(orientation));
+//        Bitmap result = Bitmap.createBitmap(src, 0, 0, w, h, matrix, true);
+//
+//        WatermarkText watermarkText = new WatermarkText(address)
+//                .setPositionX(0.01)
+//                .setPositionY(0.01)
+//                .setTextColor(Color.WHITE)
+//                .setTextAlpha(1000)
+//                .setTextSize(12);
+//        Bitmap newBitmap = WatermarkBuilder
+//                .create(this, result)
+//                .loadWatermarkText(watermarkText) // use .loadWatermarkImage(watermarkImage) to load an image.
+//                .getWatermark()
+//                .getOutputImage();
+//
+//        return newBitmap;
+//    }
+//
     public void getNewLocation(){
         gpsTracker = new GpsTracker(Mainkamera.this);
         if(gpsTracker.canGetLocation()){

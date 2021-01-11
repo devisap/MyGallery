@@ -9,7 +9,7 @@ import androidx.room.RoomDatabase;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-@Database(entities = {ImageModel.class}, version = 1, exportSchema = false)
+@Database(entities = {ImageModel.class}, version = 2, exportSchema = false)
 public abstract class ImageDatabase extends RoomDatabase {
     private static final String DB_NAME = "image_db";
     private static ImageDatabase instance;

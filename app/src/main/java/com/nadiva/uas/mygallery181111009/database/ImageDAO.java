@@ -13,6 +13,9 @@ public interface ImageDAO {
     @Query("SELECT * FROM ImageModel")
     LiveData<List<ImageModel>> getImages();
 
+    @Query("SELECT * FROM ImageModel WHERE idImage = :idImage")
+    LiveData<List<ImageModel>> getImagesDetail(int idImage);
+
     @Insert
     void insertImage(ImageModel imageModel);
 

@@ -21,6 +21,10 @@ public class ImageRepository {
         return imageDAO.getImages();
     }
 
+    public LiveData<List<ImageModel>> getImagesDetail(int idImage) {
+        return imageDAO.getImagesDetail(idImage);
+    }
+
     public void insertImage(final ImageModel imageModel) {
         ImageDatabase.executorService.execute(new Runnable() {
             @Override
